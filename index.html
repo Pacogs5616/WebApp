@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Visor 3D y Formulario de Orden</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0; 
+      padding: 0;
+      background: #f0f0f0;
+    }
+    header {
+      background: #222;
+      color: white;
+      padding: 1em;
+      text-align: center;
+    }
+    nav {
+      background: #444;
+      display: flex;
+      justify-content: center;
+      gap: 1.5em;
+      padding: 1em 0;
+    }
+    nav button {
+      background: #666;
+      color: white;
+      border: none;
+      padding: 0.6em 1.2em;
+      font-size: 1em;
+      cursor: pointer;
+      border-radius: 4px;
+      transition: background 0.3s;
+    }
+    nav button:hover {
+      background: #888;
+    }
+    section {
+      max-width: 900px;
+      margin: 2em auto;
+      background: white;
+      padding: 1.5em 2em;
+      border-radius: 6px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      display: none;
+    }
+    section.active {
+      display: block;
+    }
+    form label {
+      display: block;
+      margin-top: 1em;
+      font-weight: bold;
+    }
+    form input[type="text"],
+    form input[type="email"],
+    form textarea,
+    form select {
+      width: 100%;
+      padding: 0.5em;
+      margin-top: 0.3em;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 1em;
+    }
+    form input[type="file"] {
+      margin-top: 0.5em;
+    }
+    form input[type="submit"] {
+      margin-top: 1.5em;
+      background: #222;
+      color: white;
+      border: none;
+      padding: 0.7em 1.4em;
+      font-size: 1.1em;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+    form input[type="submit"]:hover {
+      background: #444;
+    }
+    #viewer-container {
+      width: 100%;
+      height: 500px;
+      margin-top: 1em;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      background: #eee;
+      position: relative;
+      overflow: hidden;
+    }
+    #viewer {
+      width: 100%;
+      height: 100%;
+    }
+    .loading {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 1.2em;
+      color: #333;
+      background: rgba(255,255,255,0.8);
+      padding: 10px 20px;
+      border-radius: 5px;
+    }
+    .controls {
+      margin-top: 10px;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .controls button {
+      padding: 5px 10px;
+      background: #444;
+      color: white;
+      border: none;
+      border-radius: 3px;
+      cursor: pointer;
+    }
+    .progress-container {
+      width: 100%;
+      margin-top: 10px;
+      display: none;
+    }
+    .progress-bar {
+      height: 5px;
+      background: #00aaff;
+      width: 0%;
+      transition: width 0.3s;
+    }
+    .file-info {
+      margin-top: 5px;
+      font-size: 0.9em;
+      color: #666;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Visor 3D y Formulario de Orden</h1>
+  </header>
+  <nav>
+    <button onclick="mostrarSeccion('inicio')">Inicio</button>
+    <button onclick="mostrarSeccion('orden')">Crear Orden</button>
+    <button onclick="mostrarSeccion('stlviewer')">Visor STL</button>
+    <button onclick="mostrarSeccion('tutorial')">Tutorial</button>
+  </nav>
+
+  <section id="inicio" class="active">
+    <h2>Bienvenido</h2>
+    <p>Utilice el menú superior para acceder al formulario de orden o al visor de modelos 3D.</p>
+  </section>
+
+  <section id="orden">
+    <h2>Formulario de Orden</h2>
+    <form id="ordenForm">
+      <label for="nombre">Nombre completo:</label>
+      <input type="text" id="nombre" name="nombre" required />
+
+      <label for="email">Correo electrónico:</label>
+      <input type="email" id="email" name="email" required />
+
+      <label for="telefono">Teléfono de contacto:</label>
+      <input type="text" id="telefono" name="telefono" />
+
+      <label for="descripcion">Descripción del proyecto:</label>
+      <textarea id="descripcion" name="descripcion" rows="4" required></textarea>
+
+      <label for="prioridad">Prioridad:</label>
+      <select id="prioridad" name="prioridad">
+        <option value="normal">Normal (5-7 días)</option>
+        <option value="urgente">Urgente (2-3 días)</option>
+        <option value="express">Express (24 horas)</option>
+      </select>
+
+      <label for="dicomFiles">Archivos DICOM (carpeta o múltiples archivos):</label>
+      <input
+        type="file"
+        id="dicomFiles"
+        name="dicomFiles"
+        webkitdirectory
+        directory
+        multiple
+        accept=".dcm"
+      />
+      <div class="file-info" id="dicomInfo"></div>
+
+      <label for="stlFileOrden">Archivo STL (opcional):</label>
+      <input
+        type="file"
+        id="stlFileOrden"
+        name="stlFileOrden"
+        accept=".stl"
+      />
+      <div class="file-info" id="stlInfo"></div>
+
+      <div class="progress-container" id="uploadProgress">
+        <div class="progress-bar"></div>
+      </div>
+
+      <input type="submit" value="Enviar Orden" />
+    </form>
+  </section>
+
+  <section id="stlviewer">
+    <h2>Visor de Modelos STL</h2>
+    <label for="stlFile">Seleccione un archivo STL (hasta 500MB):</label>
+    <input type="file" id="stlFile" accept=".stl" />
+    <div class="file-info" id="stlViewerInfo"></div>
+
+    <div class="progress-container" id="viewerProgress">
+      <div class="progress-bar"></div>
+    </div>
+
+    <div id="viewer-container">
+      <div id="viewer"></div>
+      <div class="loading">Esperando archivo STL...</div>
+    </div>
+    
+    <div class="controls">
+      <button onclick="rotarModelo('x')">Rotar X</button>
+      <button onclick="rotarModelo('y')">Rotar Y</button>
+      <button onclick="rotarModelo('z')">Rotar Z</button>
+      <button onclick="resetCamera()">Reiniciar Vista</button>
+      <button onclick="toggleWireframe()">Mostrar Malla</button>
+      <button onclick="toggleAxes()">Mostrar Ejes</button>
+    </div>
+  </section>
+
+  <section id="tutorial">
+  <h2>Tutorial</h2>
+  <p>A continuación puedes ver el tutorial sobre cómo utilizar esta plataforma:</p>
+  <div class="video-container">
+    <iframe 
+      src="https://www.youtube.com/embed/SrA0Tq0EDf4" 
+      title="Tutorial" 
+      frameborder="0" 
+      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+      allowfullscreen>
+    </iframe>
+  </div>
+</section>
+  
+  <!-- Librerías Three.js -->
+  <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/controls/OrbitControls.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/loaders/STLLoader.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+
+  <script>
+    // Variables globales
+    let scene, camera, renderer, controls, mesh, axesHelper;
+    let animationId = null;
+    let wireframeEnabled = false;
+    let axesEnabled = true;
+    const viewer = document.getElementById('viewer');
+    const viewerContainer = document.getElementById('viewer-container');
+    const loadingMessage = document.querySelector('.loading');
+
+    // Mostrar sección
+    function mostrarSeccion(id) {
+      document.querySelectorAll('section').forEach(sec => {
+        sec.classList.remove('active');
+      });
+      document.getElementById(id).classList.add('active');
+      
+      if (id === 'stlviewer') {
+        ajustarTamañoVisor();
+      }
+    }
+
+    // Inicializar Three.js
+    function initThreeJS() {
+      // Limpiar escena anterior si existe
+      if (renderer) {
+        viewer.removeChild(renderer.domElement);
+        cancelAnimationFrame(animationId);
+      }
+      
+      // Crear escena
+      scene = new THREE.Scene();
+      scene.background = new THREE.Color(0xeeeeee);
+      
+      // Crear cámara
+      camera = new THREE.PerspectiveCamera(
+        75, 
+        viewerContainer.clientWidth / viewerContainer.clientHeight, 
+        0.1, 
+        1000
+      );
+      camera.position.z = 5;
+      
+      // Crear renderizador
+      renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setSize(viewerContainer.clientWidth, viewerContainer.clientHeight);
+      viewer.appendChild(renderer.domElement);
+      
+      // Añadir controles de órbita
+      controls = new THREE.OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.25;
+      
+      // Añadir luces
+      const ambientLight = new THREE.AmbientLight(0x404040, 1.5);
+      scene.add(ambientLight);
+      
+      const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+      directionalLight.position.set(1, 1, 1).normalize();
+      scene.add(directionalLight);
+      
+      // Ejes de referencia
+      axesHelper = new THREE.AxesHelper(5);
+      scene.add(axesHelper);
+      
+      // Animación
+      function animate() {
+        animationId = requestAnimationFrame(animate);
+        controls.update();
+        renderer.render(scene, camera);
+      }
+      animate();
+      
+      // Manejar redimensionamiento
+      window.addEventListener('resize', ajustarTamañoVisor);
+    }
+
+    function ajustarTamañoVisor() {
+      if (!camera || !renderer) return;
+      
+      camera.aspect = viewerContainer.clientWidth / viewerContainer.clientHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(viewerContainer.clientWidth, viewerContainer.clientHeight);
+    }
+
+    // Cargar archivo STL (versión con límite de 500MB)
+    function cargarSTL(file) {
+      // Validar archivo
+      if (!file || !file.name.toLowerCase().endsWith('.stl')) {
+        mostrarError('El archivo debe tener extensión .stl');
+        return;
+      }
+      
+      // Límite aumentado a 500MB (500 * 1024 * 1024 bytes)
+      if (file.size > 500 * 1024 * 1024) {
+        mostrarError('El archivo es demasiado grande (máx. 500MB)');
+        return;
+      }
+      
+      // Mostrar información del archivo
+      document.getElementById('stlViewerInfo').textContent = 
+        Archivo: ${file.name} (${(file.size / (1024 * 1024)).toFixed(2)} MB);
+      
+      loadingMessage.textContent = "Cargando modelo...";
+      loadingMessage.style.display = 'block';
+      
+      const progressBar = document.querySelector('#viewerProgress .progress-bar');
+      const progressContainer = document.getElementById('viewerProgress');
+      progressContainer.style.display = 'block';
+      progressBar.style.width = '0%';
+      
+      const reader = new FileReader();
+      
+      reader.onprogress = function(e) {
+        if (e.lengthComputable) {
+          const percent = (e.loaded / e.total) * 100;
+          progressBar.style.width = percent + '%';
+        }
+      };
+      
+      reader.onload = function(e) {
+        try {
+          const loader = new THREE.STLLoader();
+          const geometry = loader.parse(e.target.result);
+          
+          // Verificar geometría
+          if (!geometry || !geometry.attributes || !geometry.attributes.position) {
+            throw new Error('Geometría del modelo no válida');
+          }
+          
+          // Calcular centro y dimensiones
+          geometry.computeBoundingBox();
+          const bbox = geometry.boundingBox;
+          
+          const center = new THREE.Vector3();
+          bbox.getCenter(center);
+          geometry.translate(-center.x, -center.y, -center.z);
+          
+          // Crear malla
+          const material = new THREE.MeshPhongMaterial({
+            color: 0x00aaff,
+            specular: 0x111111,
+            shininess: 50,
+            side: THREE.DoubleSide,
+            transparent: true,
+            opacity: 0.9,
+            wireframe: wireframeEnabled
+          });
+          
+          // Eliminar modelo anterior si existe
+          if (mesh) {
+            scene.remove(mesh);
+          }
+          
+          mesh = new THREE.Mesh(geometry, material);
+          scene.add(mesh);
+          
+          // Ajustar cámara al modelo
+          const maxDim = Math.max(
+            bbox.max.x - bbox.min.x,
+            bbox.max.y - bbox.min.y,
+            bbox.max.z - bbox.min.z
+          );
+          camera.position.z = maxDim * 1.5;
+          controls.target.copy(center);
+          controls.update();
+          
+          // Ocultar mensaje de carga
+          loadingMessage.style.display = 'none';
+          progressContainer.style.display = 'none';
+          
+        } catch (error) {
+          console.error('Error al procesar STL:', error);
+          mostrarError('Error al procesar el archivo STL');
+          progressContainer.style.display = 'none';
+        }
+      };
+      
+      reader.onerror = function(error) {
+        console.error('Error de lectura:', error);
+        mostrarError('Error al leer el archivo');
+        progressContainer.style.display = 'none';
+      };
+      
+      reader.readAsArrayBuffer(file);
+    }
+
+    function mostrarError(mensaje) {
+      loadingMessage.textContent = mensaje;
+      loadingMessage.style.display = 'block';
+    }
+
+    // Controles del visor
+    function rotarModelo(eje) {
+      if (!mesh) return;
+      
+      switch(eje) {
+        case 'x':
+          mesh.rotation.x += Math.PI / 8;
+          break;
+        case 'y':
+          mesh.rotation.y += Math.PI / 8;
+          break;
+        case 'z':
+          mesh.rotation.z += Math.PI / 8;
+          break;
+      }
+    }
+
+    function resetCamera() {
+      if (!mesh || !controls) return;
+      
+      mesh.rotation.set(0, 0, 0);
+      controls.reset();
+    }
+
+    function toggleWireframe() {
+      if (!mesh) return;
+      
+      wireframeEnabled = !wireframeEnabled;
+      mesh.material.wireframe = wireframeEnabled;
+      mesh.material.needsUpdate = true;
+    }
+
+    function toggleAxes() {
+      axesEnabled = !axesEnabled;
+      axesHelper.visible = axesEnabled;
+    }
+
+    // Eventos para el visor STL
+    document.getElementById('stlFile').addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        cargarSTL(file);
+      } else {
+        loadingMessage.textContent = 'Esperando archivo STL...';
+        loadingMessage.style.display = 'block';
+        document.getElementById('stlViewerInfo').textContent = '';
+      }
+    });
+
+    // Eventos para el formulario de orden
+    document.getElementById('dicomFiles').addEventListener('change', (e) => {
+      const files = e.target.files;
+      if (files && files.length > 0) {
+        const totalSize = Array.from(files).reduce((sum, file) => sum + file.size, 0);
+        document.getElementById('dicomInfo').textContent = 
+          ${files.length} archivos DICOM seleccionados (${(totalSize / (1024 * 1024)).toFixed(2)} MB);
+      } else {
+        document.getElementById('dicomInfo').textContent = '';
+      }
+    });
+
+    document.getElementById('stlFileOrden').addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        document.getElementById('stlInfo').textContent = 
+          Archivo STL: ${file.name} (${(file.size / (1024 * 1024)).toFixed(2)} MB);
+      } else {
+        document.getElementById('stlInfo').textContent = '';
+      }
+    });
+
+    // Configuración de EmailJS
+    emailjs.init('TU_USER_ID_EMAILJS');
+
+    // Envío del formulario
+    document.getElementById('ordenForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      
+      const formData = new FormData(this);
+      const progressBar = document.querySelector('#uploadProgress .progress-bar');
+      const progressContainer = document.getElementById('uploadProgress');
+      
+      // Simular progreso de carga (en una implementación real usarías XMLHttpRequest con eventos de progreso)
+      progressContainer.style.display = 'block';
+      let progress = 0;
+      const interval = setInterval(() => {
+        progress += 5;
+        progressBar.style.width = progress + '%';
+        if (progress >= 100) {
+          clearInterval(interval);
+          progressContainer.style.display = 'none';
+          alert('Orden enviada correctamente (simulación)');
+          this.reset();
+          document.getElementById('dicomInfo').textContent = '';
+          document.getElementById('stlInfo').textContent = '';
+        }
+      }, 100);
+      
+      // En una implementación real, aquí enviarías el formulario a tu backend
+      // o usarías EmailJS para enviar los datos por correo
+    });
+
+    // Inicializar al cargar la página
+    window.addEventListener('load', () => {
+      initThreeJS();
+    });
+  </script>
+</body>
+</html>
